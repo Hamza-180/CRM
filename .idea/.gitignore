@@ -1,11 +1,15 @@
-# Default ignored files
+# This is a configuration file for ignoring certain files and directories in the system.
+
+# The following lines specify the files and directories that should be ignored by default.
+# These are located in the '/shelf/' directory and the '/workspace.xml' file.
 /shelf/
 /workspace.xml
 
-# Editor-based HTTP Client requests
+# The next section contains HTTP Client requests that are editor-based.
 /httpRequests/
 
-# Datasource local storage ignored files
+# The final section contains files related to local storage of datasources.
+# These files are also ignored, and include the '/dataSources/' directory and the '/dataSources.local.xml' file.
 /dataSources/
 /dataSources.local.xml
 
