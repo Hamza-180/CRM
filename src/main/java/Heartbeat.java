@@ -1,6 +1,8 @@
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.ExceptionHandler;
+import com.rabbitmq.client.MessageProperties;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -18,41 +20,27 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.TimeoutException;
 
-//annotation are part of jaxb
 @XmlRootElement
 @XmlType(propOrder = {"service", "timestamp", "error", "status"})
 public class Heartbeat {
 
-    private String service;
+    private static final String EXCHANGE_NAME = "controlroom_exchange";
+    private static final String HOST = "10.2.160.9";
+    private static final String SERVICE = "CRM";
+
     private String timestamp;
     private String error;
     private int status;
 
-    private String exhangeName = "controlroom_exchange";
-    private String host = "10.2.160.9";
-
     public Heartbeat() throws Exception {
-        this.service = "CRM";
         this.timestamp = getCurrentTimestamp();
-
-        if (isSalesforceAvailable()){
-            this.error = "No error";
-            this.status = 1;
-        }else {
-            this.error = "Error";
-            this.status = 0;
-        }
-
+        this.status = isSalesforceAvailable() ? 1 : 0;
+        this.error = this.status == 1 ? "No error" : "Error";
     }
-
 
     @XmlElement
     public String getService() {
-        return service;
-    }
-
-    public void setService(String service) {
-        this.service = service;
+        return SERVICE;
     }
 
     @XmlElement
@@ -60,17 +48,9 @@ public class Heartbeat {
         return timestamp;
     }
 
-    public void setTimestamp(String timestamp) {
-        this.timestamp = timestamp;
-    }
-
     @XmlElement
     public String getError() {
         return error;
-    }
-
-    public void setError(String error) {
-        this.error = error;
     }
 
     @XmlElement
@@ -78,88 +58,70 @@ public class Heartbeat {
         return status;
     }
 
-    public void setStatus(int status) {
-        this.status = status;
-    }
+    public String createXML() throws JAXBException {
+        JAXBContext context = JAXBContext.newInstance(Heartbeat.class);
+        Marshaller marshaller = context.createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
 
-    public String createXML() throws JAXBException{
-
-        JAXBContext context = JAXBContext.newInstance(Heartbeat.class); //create a jaxb context for the heartbeat class to use the jaxb api
-        Marshaller marshaller = context.createMarshaller();//marshaller converts an object to xml
-        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);// format the xml for better readability
-
-        //we collect the output to a stringwriter so we can turn the marshaller xml into a string
         StringWriter stringWriter = new StringWriter();
         marshaller.marshal(this, stringWriter);
 
         String xmlString = stringWriter.toString();
-        System.out.println(xmlString); // Print the XML
+        System.out.println(xmlString);
         return xmlString;
     }
+
     public void sendHeartbeat() throws Exception {
-
-        //create a connectionfactory and set the host on which rabbitmq runs
         ConnectionFactory factory = new ConnectionFactory();
-        factory.setHost(host);
+        factory.setHost(HOST);
 
-        try{
-            //create a connection with the server and a channel where we communicate through
-            Connection connection = factory.newConnection();
-            Channel channel = connection.createChannel();
-            channel.exchangeDeclare(exhangeName,"direct");//we declare an exchange on the channel(if the exchange already exists this line will be ignored)
+        try (Connection connection = factory.newConnection();
+             Channel channel = connection.createChannel()) {
 
-            // create an xml document
+            channel.exchangeDeclare(EXCHANGE_NAME, "direct");
+
             String xml = createXML();
+            byte[] xmlBytes = xml.getBytes(MessageProperties.CONTENT_TYPE_XML);
 
-            //convert it to byte array to send to the exchange
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            TransformerFactory transformerFactory = TransformerFactory.newInstance();
-            Transformer transformer = transformerFactory.newTransformer();
-            transformer.transform(new StreamSource(new StringReader(xml)),new StreamResult(byteArrayOutputStream));
+            channel.basicPublish(EXCHANGE_NAME, "", null, xmlBytes);
+            System.out.println("Heartbeat has been sent successfully");
 
-            byte [] xmlBytes = byteArrayOutputStream.toByteArray();
-
-            //xml sent to the exchange
-            channel.basicPublish(exhangeName,"",null,xmlBytes);
-            System.out.println("heartbeat has been sent succesfully");
-
-        }catch(IOException | TimeoutException e){
-            System.out.println("heartbeat was not sent due to error");
+        } catch (IOException | TimeoutException e) {
+            System.err.println("Heartbeat was not sent due to error");
             e.printStackTrace();
-
         }
     }
 
     public static boolean isSalesforceAvailable() throws Exception {
-
-        String endpoint = "https://erasmushogeschool7-dev-ed.develop.lightning.force.com/lightning/page/home"; //url of our salesforce instance
+        String endpoint = "https://erasmushogeschool7-dev-ed.develop.lightning.force.com/lightning/page/home";
 
         try {
             URL url = new URL(endpoint);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection(); //casting to access the http urlconnection functionality
-            connection.setRequestMethod("GET"); // send a GET request to the url to see if there is an answer
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
 
-            int responseCode = connection.getResponseCode(); // retrieve the response code
-            if (responseCode == 200) {
-                System.out.println("Salesforce is available. Response code: " + responseCode);
-                return true;
-            } else {
-                System.out.println("Salesforce ping failed. Response code: " + responseCode);
-                return false;
-            }
+            int responseCode = connection.getResponseCode();
+            System.out.println("Salesforce response code: " + responseCode);
+            return responseCode == 200;
+
         } catch (IOException e) {
-            System.out.println("Exception occurred: " + e.getMessage());
+            System.err.println("Exception occurred: " + e.getMessage());
             return false;
         }
     }
 
-    //create a timestamp
-    private String getCurrentTimestamp(){
-
-        //crate a dateformat to format the date the way we want
+    private String getCurrentTimestamp() {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        return dateFormat.format(new Date()); //return the date formatted with the format created above
+        return dateFormat.format(new Date());
     }
 
+    public static void main(String[] args) {
+        try {
+            Heartbeat heartbeat = new Heartbeat();
+            heartbeat.sendHeartbeat();
+        } catch (Exception e) {
+            System.err.println("Error in sending heartbeat: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 }
-
