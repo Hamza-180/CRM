@@ -1,0 +1,57 @@
+name: Development
+
+on:
+  push:
+    branches: dev
+
+jobs:
+  build:
+    runs-on: development
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build odoo image
+        run: |
+          cd odoo 
+          docker build -t crm-odoo-1 . --no-cache
+
+  deploy:
+    runs-on: development
+    needs: Build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: "Debug: System Info"
+        run: |
+          whoami
+          groups
+          hostname
+          pwd
+
+      - name: "Debug: Docker"
+        run: docker info
+
+      - name: Copy .env file
+        run: cp .env.example .env
+
+      - name: Check Docker Compose Syntax
+        run: docker-compose config
+
+      - name: Deploy
+        run: |
+          docker-compose down --volumes
+          docker-compose up -d
+
+      - name: Wait for services to start
+        run: |
+          sleep 30
+          docker-compose ps
+
+      - name: Check service logs
+        run: |
+          docker-compose logs
+
+      - name: Check service status
+        run: |
+          docker-compose ps
