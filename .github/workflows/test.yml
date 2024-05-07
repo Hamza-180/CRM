@@ -1,0 +1,34 @@
+name: Development
+
+on: push
+
+jobs:
+  build:
+    runs-on: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name:
+        run: |
+
+
+  deploy:
+    runs-on: test
+    needs: Build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: "Debug: System Info"
+        run: |
+          whoami
+          groups
+          hostname
+          pwd
+
+      - name: "Debug: Docker"
+        run: docker info
+
+      - name:
+        run: |

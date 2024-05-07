@@ -34,11 +34,6 @@ jobs:
       - name: "Debug: Docker"
         run: docker info
 
-      - name: Copy .env file
-        run: cp .env.example .env
-
-      - name: Check Docker Compose Syntax
-        run: docker-compose config
 
       - name: Deploy
         run: |
