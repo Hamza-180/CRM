@@ -9,13 +9,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name:
+      - name: Build odoo image
         run: |
-
+          cd odoo 
+          docker build -t crm-odoo-1 . --no-cache
 
   deploy:
     runs-on: test
-    needs: Build
+    needs: build
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,5 +31,20 @@ jobs:
       - name: "Debug: Docker"
         run: docker info
 
-      - name:
+      - name: Deploy and start services
         run: |
+          docker-compose down --volumes
+          docker-compose up -d
+
+      - name: Wait for services to start
+        run: |
+          sleep 30
+          docker-compose ps
+
+      - name: Check service logs
+        run: |
+          docker-compose logs
+
+      - name: Check service status
+        run: |
+          docker-compose ps
