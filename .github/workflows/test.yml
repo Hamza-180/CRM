@@ -1,22 +1,17 @@
-name: Development
+name: test
 
 on: push
 
 jobs:
-  build:
-    runs-on: test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: Build odoo image
-        run: |
-          cd odoo 
-          docker build -t crm-odoo-1 . --no-cache
 
-  deploy:
-    runs-on: test
-    needs: build
+
+
+  deploy-crm:
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        environment: [test, development, production]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

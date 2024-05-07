@@ -2,7 +2,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * This class, HeartbeatTest, contains a single test method that verifies the successful operation of the Heartbeat class.
+ * This class, HeartbeatTest, contains a single test.yml method that verifies the successful operation of the Heartbeat class.
  */
 public class HeartbeatTest {
 
